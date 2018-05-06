@@ -1,0 +1,35 @@
+{
+    "compilerOptions": {
+        "allowSyntheticDefaultImports": true,
+        "declaration": true,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "lib": [
+            "es2015"
+        ],
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "sourceMap": false,
+        "target": "esnext",
+        "typeRoots": [
+            "./node_modules/@types"
+        ],
+        "outDir": "dist",
+        "traceResolution": false,
+        "strictNullChecks": true,
+        "strictPropertyInitialization": true
+    },
+    "include": [
+        "src/**/*.ts",
+        "test/**/*.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        ".cache"
+    ],
+    "compileOnSave": false,
+    "atom": {
+        "rewriteTsconfig": false
+    }
+}
