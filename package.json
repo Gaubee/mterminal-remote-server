@@ -1,6 +1,6 @@
 {
   "name": "mter-rs",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "types": "dist/setup.d.ts",
   "main": "dist/setup.js",
