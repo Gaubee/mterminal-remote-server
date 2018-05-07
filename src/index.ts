@@ -83,10 +83,7 @@ export function setupMter(opts: {
 
     /// 处理udp日志服务
     MTER_ENV.forEach((CONSOLE_PRO_MODE) => {
-        if (!CONSOLE_PRO_MODE.startsWith("@")) {
-            return;
-        }
-        const path_info = CONSOLE_PRO_MODE.substr(1).split(':');
+        const path_info = CONSOLE_PRO_MODE.trim().split(':');
         let name = "";
         let port = 0;
         let host = '0.0.0.0';
