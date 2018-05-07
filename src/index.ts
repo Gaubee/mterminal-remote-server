@@ -100,8 +100,7 @@ export function setupMter(opts: {
             }
         }
         if (process_name === name
-            || (name === "master" && process_name === "")
-            || (name === "*" && process_name === "")
+            || (name === "*")
             || (name && minimatch(process_name, name, minmatch_options))) {
             const bind_port = port ? port : getUDPPort();
             console.log(colors.bgWhite.yellow("[DEBUG EXPORT TO UDP]"), colors.cyan(`[${name || "MASTER"}]`), bind_port, host);
