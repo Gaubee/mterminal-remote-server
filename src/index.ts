@@ -19,9 +19,9 @@ export function setupMter(opts: {
     const _MTER_ENV = process.env.MTER || "";
     const process_base_name = require.main ? path.parse(require.main.filename).base : ""
     const process_name = (opts.process_name || process['name'] || process.env.name)
-        || cluster.isWorker
-        ? `CLUSTER-${process_base_name}-${process.pid}`
-        : `MASTER-${process_base_name}-${process.pid}`;
+        || (cluster.isWorker
+            ? `CLUSTER-${process_base_name}-${process.pid}`
+            : `MASTER-${process_base_name}-${process.pid}`);
 
     const minmatch_options = { nocase: true };
     const RECIPIENT_PORT = opts.recipient_port || 4511;
