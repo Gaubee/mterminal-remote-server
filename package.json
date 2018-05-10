@@ -15,9 +15,11 @@
     "url": "git+https://github.com/Gaubee/mterminal-remote-server.git"
   },
   "dependencies": {
-    "@types/node": "^10.0.4",
     "colors": "^1.2.4",
     "minimatch": "^3.0.4",
     "optimist": "^0.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^10.0.4"
   }
 }
