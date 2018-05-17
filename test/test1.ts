@@ -1,8 +1,12 @@
+process.env.DEBUG = "mter-rs";
+process.env.MTER = "**";
 import { setupMter } from '../src/';
 
 setupMter();
 
 let i = 0;
-setInterval(() => {
+const test = () => {
     console.log(i++);
-}, 100)
+    setTimeout(test,100);
+};
+test();

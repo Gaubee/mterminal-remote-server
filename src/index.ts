@@ -1,14 +1,15 @@
-import * as colors from "colors";
 import * as net from "net";
 import * as cluster from "cluster";
 import * as dgram from "dgram";
 import * as os from "os";
 import * as path from "path";
 import * as fs from "fs";
-import * as minimatch from "minimatch";
+import Mwildcards from "mwildcards";
+const debug = require("debug")("mter-rs");
 
 export function setupMter(opts: {
     keep_stdout?: boolean,
+    hide_stderr?: boolean,
     process_name?: string,
     recipient_port?: number,
     heartbeat_udp_port?: number,
@@ -23,15 +24,14 @@ export function setupMter(opts: {
             ? `CLUSTER-${process_base_name}-${process.pid}`
             : `MASTER-${process_base_name}-${process.pid}`);
 
-    const minmatch_options = { nocase: true };
     const RECIPIENT_PORT = opts.recipient_port || 4511;
     const DEFAULT_BIND_UDP_PORT = opts.default_bind_udp_port || 4600;
     const HEARTBEAT_UDP_PORT = opts.heartbeat_udp_port || (DEFAULT_BIND_UDP_PORT - 1);
     const BIND_UDP_PORT_LOCK_FILE_NAME = opts.bind_udp_port_lock_file_name || `udp_xlogger_port.lock`;
     const KEEP_STDOUT = !!opts.keep_stdout;
+    const HIDE_STDERR = !!opts.hide_stderr;
     const HEARTBEAT = 1000;
-    const STDOUT_WRITE_SYMBOL = Symbol.for("stdout.write");
-    const STDERR_WRITE_SYMBOL = Symbol.for("stderr.write");
+    const WRITE_SYMBOL = Symbol.for("std.write");
 
     const MTER_ENV = _MTER_ENV.split(",").map(item => item.trim());
 
@@ -87,32 +87,38 @@ export function setupMter(opts: {
         let name = "";
         let port = 0;
         let host = '0.0.0.0';
-        for (let item of path_info) {
-            if (net.isIPv4(item)) {// 这里使用:分隔符，所以只支持ipv4
-                host = item
-            } else if (isFinite(item as any)) {
-                port = parseInt(item);
-            } else if (item !== "") {
-                name = item;
+        if (path_info.length === 1) {
+            name = path_info[0];
+        } else {
+            for (let item of path_info) {
+                if (net.isIPv4(item)) {// 这里使用:分隔符，所以只支持ipv4
+                    host = item
+                } else if (isFinite(item as any)) {
+                    port = parseInt(item);
+                } else if (item !== "") {
+                    name = item;
+                }
             }
         }
-        if (process_name === name
-            || (name === "*")
-            || (name && minimatch(process_name, name, minmatch_options))) {
+        const mw = new Mwildcards(name, { nocase: true });
+
+        if (mw.isMatch(process_name)) {
             const bind_port = port ? port : getUDPPort();
-            console.log(colors.bgWhite.yellow("[DEBUG EXPORT TO UDP]"), colors.cyan(`[${name || "MASTER"}]`), bind_port, host);
-            if (process.stdout[STDOUT_WRITE_SYMBOL]) {
+            debug("[DEBUG EXPORT TO UDP]", name || "MASTER", bind_port, host);
+            if (process.stdout[WRITE_SYMBOL]) {
                 return
             }
-            process.stdout[STDOUT_WRITE_SYMBOL] = process.stdout.write
-            process.stderr[STDERR_WRITE_SYMBOL] = process.stderr.write
-
-            let last_write_times = 2;
+            process.stdout[WRITE_SYMBOL] = process.stdout.write
+            process.stderr[WRITE_SYMBOL] = process.stderr.write
 
             /// 启用WEB调试
-            // 对外，公用一个端口接收
+            // 对外，公用一个端口接收，也用于发送心跳包
             const listen_server = dgram.createSocket({ type: "udp4", reuseAddr: true });
+            let listening_server = false
+
             listen_server.bind({ port: HEARTBEAT_UDP_PORT, exclusive: true }, () => {
+                debug("LOG TURN TO UDP SERVER");
+                listening_server = true;
                 listen_server.setBroadcast(true);
                 // 初始化后进行初始化广播
                 const pong = () => {
@@ -121,14 +127,8 @@ export function setupMter(opts: {
                 };
                 pong();
             });
-            // listen_server.on("message", (msg, rinfo) => {
-            //     process.stdout[STDOUT_WRITE_SYMBOL](`${process_name} ggggg ${msg}\n`);
-            //     if (rinfo.port === RECIPIENT_PORT && msg.toString() === "PING") {
-            //         listen_server.send(`PONG:${bind_port}`, rinfo.port, rinfo.address);
-            //     }
-            // });
+
             process.on("beforeExit", () => {
-                process.stdout[STDOUT_WRITE_SYMBOL]("BBBBBB\n");
                 listen_server.send(`BONG:${bind_port}`, RECIPIENT_PORT, "");
             });
             // logger发送器
@@ -136,24 +136,24 @@ export function setupMter(opts: {
                 send_port: RECIPIENT_PORT,
                 bind_port
             });
-            process.stdout.write = process.stderr.write = function (chunk: any, ...args) {
+            process.stdout.write = function (chunk: any, ...args) {
                 try {
-                    if (!logger_proxy.listening || KEEP_STDOUT) {
-                        return this[STDOUT_WRITE_SYMBOL](chunk, ...args);
-                    } else if (last_write_times) {
-                        last_write_times -= 1;
-                        if (last_write_times === 0) {
-                            setImmediate(() => {
-                                this[STDOUT_WRITE_SYMBOL](Buffer.from(colors.bgYellow.black("LOG TURN TO UDP SERVER\n")));
-                            });
-                        }
-                        return this[STDOUT_WRITE_SYMBOL](chunk, ...args);
-                    } else {
-                        return true;
+                    if (!logger_proxy.listening || !listening_server || KEEP_STDOUT) {
+                        return this[WRITE_SYMBOL](chunk, ...args);
                     }
+                    return true;
                 } finally {
                     logger_proxy.write(chunk);
+                }
+            }
+            process.stderr.write = function (chunk: any, ...args) {
+                try {
+                    if (!HIDE_STDERR || !logger_proxy.listening || !listening_server) {
+                        return this[WRITE_SYMBOL](chunk, ...args);
+                    }
                     return true;
+                } finally {
+                    logger_proxy.write(chunk);
                 }
             }
         }
@@ -170,7 +170,7 @@ export function setupMter(opts: {
             fs.closeSync(pre_fs);
             fd = fs.openSync(port_lock_filepath, 'rs+');
         }
-        const buffer = new Buffer(Uint16Array.BYTES_PER_ELEMENT);
+        const buffer = Buffer.alloc(Uint16Array.BYTES_PER_ELEMENT);
         fs.readSync(fd, buffer, 0, buffer.length, 0);
         let bind_udp_port = buffer.readUInt16BE(0);
         if (!bind_udp_port) {

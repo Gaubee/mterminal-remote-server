@@ -1,3 +1,5 @@
+process.env.MTER = "*";
+
 import * as cluster from 'cluster';
 import { setupMter } from '../src/';
 
