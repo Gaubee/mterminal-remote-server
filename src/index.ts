@@ -84,12 +84,11 @@ export function setupMter(opts: {
             socket.bind({ port: this.bind_port, exclusive: true });
 
             socket.on('listening', () => {
-                socket.addMembership(this.membership);
                 socket.removeListener('error', startupErrorListener);
                 // console.log("UDP Logger listening", socket.address());
                 this.listening = true;
                 for (let chunk of this._cache_send) {
-                    (socket as any).send(chunk, 0, chunk.length, this.send_port);
+                    (socket as any).send(chunk, 0, chunk.length, this.send_port, this.membership);
                 }
                 this._cache_send = [];
             });
@@ -101,7 +100,7 @@ export function setupMter(opts: {
         write(data: Buffer | string) {
             const chunk = typeof data === "string" ? Buffer.from(data) : data;
             if (this.listening) {
-                (this.socket as any).send(chunk, 0, chunk.length, this.send_port);
+                (this.socket as any).send(chunk, 0, chunk.length, this.send_port, this.membership);
             } else {
                 this._cache_send.push(chunk);
             }
@@ -135,7 +134,7 @@ export function setupMter(opts: {
                 "NAME:", process_name || "MASTER",
                 "PORT:", bind_port,
                 "SHIP:", MTER_MEMBERSHIP,
-                host);
+                "HOST:", host);
             if (process.stdout[WRITE_SYMBOL]) {
                 return
             }
