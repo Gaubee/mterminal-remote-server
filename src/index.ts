@@ -65,13 +65,16 @@ export function setupMter(opts: {
         socket: dgram.Socket
         bind_port: number
         send_port: number
+        membership: string
         listening = false
         private _cache_send: Buffer[] = []
 
         constructor(options: {
+            membership: string,
             send_port: number,
             bind_port: number,
         }, stdout?: NodeJS.WriteStream, cb?: Function) {
+            this.membership = options.membership;
             this.send_port = options.send_port;
             this.bind_port = options.bind_port;
             const socket = this.socket = dgram.createSocket("udp4");
@@ -81,6 +84,7 @@ export function setupMter(opts: {
             socket.bind({ port: this.bind_port, exclusive: true });
 
             socket.on('listening', () => {
+                socket.addMembership(this.membership);
                 socket.removeListener('error', startupErrorListener);
                 // console.log("UDP Logger listening", socket.address());
                 this.listening = true;
@@ -160,6 +164,7 @@ export function setupMter(opts: {
             });
             // logger发送器
             const logger_proxy = new UdpLogger({
+                membership: MTER_MEMBERSHIP,
                 send_port: RECIPIENT_PORT,
                 bind_port
             });
