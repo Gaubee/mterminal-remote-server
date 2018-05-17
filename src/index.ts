@@ -127,7 +127,11 @@ export function setupMter(opts: {
 
         if (mw.isMatch(process_name)) {
             const bind_port = port ? port : getUDPPort();
-            debug("[DEBUG EXPORT TO UDP]", name || "MASTER", bind_port, host);
+            debug("[DEBUG EXPORT TO UDP]",
+                "NAME:", process_name || "MASTER",
+                "PORT:", bind_port,
+                "SHIP:", MTER_MEMBERSHIP,
+                host);
             if (process.stdout[WRITE_SYMBOL]) {
                 return
             }
