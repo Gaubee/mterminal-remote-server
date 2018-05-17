@@ -11,10 +11,10 @@ const debug = require("debug")("mter-rs");
 const ipToNumber = (ip: string) => {
     const dots = ip.split(".");
     let res = 0;
-    do {
+    for (let i = 0; i < dots.length; i += 1) {
         res += +dots[0];
         res << 8;
-    } while (dots.length);
+    }
 }
 const start_membership_ip = ipToNumber("224.0.2.0");
 const end_membership_ip = ipToNumber("238.255.255.255");
