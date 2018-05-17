@@ -5,7 +5,23 @@ import * as os from "os";
 import * as path from "path";
 import * as fs from "fs";
 import Mwildcards from "mwildcards";
+import { doesNotReject } from "assert";
 const debug = require("debug")("mter-rs");
+
+const ipToNumber = (ip: string) => {
+    const dots = ip.split(".");
+    let res = 0;
+    do {
+        res += +dots[0];
+        res << 8;
+    } while (dots.length);
+}
+const start_membership_ip = ipToNumber("224.0.2.0");
+const end_membership_ip = ipToNumber("238.255.255.255");
+function isMembershipRange(ip: string) {
+    const ip_val = ipToNumber(ip);
+    return start_membership_ip <= ip_val && ip_val <= end_membership_ip;
+}
 
 export function setupMter(opts: {
     keep_stdout?: boolean,
@@ -17,6 +33,13 @@ export function setupMter(opts: {
     bind_udp_port_lock_file_name?: string,
 } = {}) {
 
+    const MTER_MEMBERSHIP = (() => {
+        const env_membership = process.env.MTER_MEMBERSHIP || ""
+        if (net.isIPv4(env_membership) && isMembershipRange(env_membership)) {
+            return env_membership
+        }
+        return "225.1.2.7";
+    })();
     const _MTER_ENV = process.env.MTER || "";
     const process_base_name = require.main ? path.parse(require.main.filename).base : ""
     const process_name = (opts.process_name || process['name'] || process.env.name)
@@ -122,7 +145,7 @@ export function setupMter(opts: {
                 listen_server.setBroadcast(true);
                 // 初始化后进行初始化广播
                 const pong = () => {
-                    listen_server.send(`PONG:${bind_port}:${process_name || "MASTER"}`, RECIPIENT_PORT, "");
+                    listen_server.send(`PONG:${bind_port}:${process_name || "MASTER"}`, RECIPIENT_PORT, MTER_MEMBERSHIP);
                     setTimeout(pong, HEARTBEAT);
                 };
                 pong();
